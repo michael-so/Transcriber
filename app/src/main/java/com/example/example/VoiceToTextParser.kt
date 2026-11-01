@@ -11,54 +11,101 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+data class LanguageOption(
+    val code: String,
+    val displayName: String,
+    val flag: String,
+)
+
+val supportedLanguages = listOf(
+    LanguageOption(code = "ms-MY", displayName = "Malay (Bahasa Melayu)", flag = "🇲🇾"),
+    LanguageOption(code = "en-US", displayName = "English (US)", flag = "🇺🇸"),
+)
+
+/**
+ * Contract interface for Voice-To-Text Engines.
+ */
+interface VoiceToTextEngine {
+    val state: StateFlow<VoiceToTextState>
+    fun startListening(languageCode: String = state.value.selectedLanguage.code)
+    fun stopListening()
+    fun setLanguage(language: LanguageOption)
+    fun clearText()
+    fun clearError()
+}
+
 data class VoiceToTextState(
     val isListening: Boolean = false,
     val spokenText: String = "",
     val partialText: String = "",
     val error: String? = null,
-    val isAvailable: Boolean = true
+    val isAvailable: Boolean = true,
+    val selectedLanguage: LanguageOption = supportedLanguages[0], // Malay by default
 )
 
-class VoiceToTextParser(private val context: Context) : RecognitionListener {
+class VoiceToTextParser(private val context: Context) : VoiceToTextEngine, RecognitionListener {
 
     private val _state = MutableStateFlow(VoiceToTextState())
-    val state: StateFlow<VoiceToTextState> = _state.asStateFlow()
+    override val state: StateFlow<VoiceToTextState> = _state.asStateFlow()
 
     private var recognizer: SpeechRecognizer? = null
 
     init {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            _state.update { it.copy(isAvailable = false, error = "Speech recognition is not available on this device.") }
+        try {
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                _state.update { it.copy(isAvailable = false, error = "Speech recognition is not available on this device.") }
+            }
+        } catch (_: Exception) {
+            _state.update { it.copy(isAvailable = false, error = "Failed to initialize speech recognition.") }
         }
     }
 
-    fun startListening(languageCode: String = "en-US") {
+    override fun setLanguage(language: LanguageOption) {
+        _state.update { it.copy(selectedLanguage = language) }
+    }
+
+    override fun startListening(languageCode: String) {
         _state.update { it.copy(error = null) }
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            _state.update { it.copy(isAvailable = false, error = "Speech recognition unavailable.") }
-            return
+        try {
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                _state.update { it.copy(isAvailable = false, error = "Speech recognition unavailable on this device.") }
+                return
+            }
+
+            stopListening()
+
+            val newRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            if (newRecognizer == null) {
+                _state.update { it.copy(isListening = false, error = "Could not initialize speech recognizer service.") }
+                return
+            }
+
+            newRecognizer.setRecognitionListener(this@VoiceToTextParser)
+            recognizer = newRecognizer
+
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode)
+                putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, languageCode)
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            }
+
+            newRecognizer.startListening(intent)
+            _state.update { it.copy(isListening = true, error = null) }
+        } catch (e: Exception) {
+            _state.update {
+                it.copy(
+                    isListening = false,
+                    error = "Speech error: ${e.localizedMessage ?: e.javaClass.simpleName}"
+                )
+            }
         }
-
-        stopListening()
-
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(this@VoiceToTextParser)
-        }
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        }
-
-        recognizer?.startListening(intent)
-        _state.update { it.copy(isListening = true, error = null) }
     }
 
-    fun stopListening() {
+    override fun stopListening() {
         try {
             recognizer?.stopListening()
             recognizer?.destroy()
@@ -69,11 +116,11 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
         }
     }
 
-    fun clearText() {
+    override fun clearText() {
         _state.update { it.copy(spokenText = "", partialText = "", error = null) }
     }
 
-    fun clearError() {
+    override fun clearError() {
         _state.update { it.copy(error = null) }
     }
 
@@ -94,23 +141,12 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
     }
 
     override fun onError(error: Int) {
-        if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-            // These are common when user pauses or doesn't speak right away
-            _state.update {
-                it.copy(
-                    isListening = false,
-                    partialText = "",
-                    error = getErrorMessage(error)
-                )
-            }
-        } else {
-            _state.update {
-                it.copy(
-                    isListening = false,
-                    partialText = "",
-                    error = getErrorMessage(error)
-                )
-            }
+        _state.update {
+            it.copy(
+                isListening = false,
+                partialText = "",
+                error = getErrorMessage(error)
+            )
         }
     }
 
@@ -127,7 +163,7 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
                 current.copy(
                     spokenText = updatedText,
                     partialText = "",
-                    isListening = false
+                    isListening = false,
                 )
             }
         } else {

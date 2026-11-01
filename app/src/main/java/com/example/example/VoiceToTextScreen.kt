@@ -29,9 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Share
@@ -41,6 +41,8 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -112,7 +114,7 @@ fun VoiceToTextScreen(
                 snackbarHostState.showSnackbar("Microphone permission is required to detect and transcribe voice.")
             }
         } else {
-            viewModel.startListening("en-US")
+            viewModel.startListening()
         }
     }
 
@@ -133,12 +135,13 @@ fun VoiceToTextScreen(
             val granted = isPermissionGranted()
             hasAudioPermission = granted
             if (granted) {
-                viewModel.startListening("en-US")
+                viewModel.startListening()
             } else {
                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         },
         onStopListening = { viewModel.stopListening() },
+        onSelectLanguage = { language -> viewModel.setLanguage(language) },
         onClearText = { viewModel.clearText() },
         onCopyText = { text ->
             clipboardManager.setText(AnnotatedString(text))
@@ -164,10 +167,13 @@ fun VoiceToTextScreenContent(
     onRequestPermission: () -> Unit = {},
     onStartListening: () -> Unit = {},
     onStopListening: () -> Unit = {},
+    onSelectLanguage: (LanguageOption) -> Unit = {},
     onClearText: () -> Unit = {},
     onCopyText: (String) -> Unit = {},
     onShareText: (String) -> Unit = {},
 ) {
+    var isLanguageMenuExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -176,11 +182,11 @@ fun VoiceToTextScreenContent(
                 title = {
                     Column {
                         Text(
-                            text = "English Voice Transcriber",
+                            text = "Voice Transcriber",
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Real-time English Speech Recognition",
+                            text = "Speech Recognition in Malay & English",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -200,31 +206,52 @@ fun VoiceToTextScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Header Language Badge
+            // Language Dropdown Selector Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AssistChip(
-                    onClick = { },
-                    label = { Text("Language: English (US)") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                Box {
+                    AssistChip(
+                        onClick = { isLanguageMenuExpanded = true },
+                        label = {
+                            Text("${state.selectedLanguage.flag} ${state.selectedLanguage.displayName}")
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select language",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                )
+
+                    DropdownMenu(
+                        expanded = isLanguageMenuExpanded,
+                        onDismissRequest = { isLanguageMenuExpanded = false }
+                    ) {
+                        supportedLanguages.forEach { language ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text("${language.flag}  ${language.displayName}")
+                                },
+                                onClick = {
+                                    onSelectLanguage(language)
+                                    isLanguageMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 if (state.isListening) {
                     Text(
-                        text = "● LISTENING",
+                        text = "● MENDENGAR",
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -254,7 +281,7 @@ fun VoiceToTextScreenContent(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "To transcribe your spoken English into text, please grant audio recording access.",
+                            text = "To transcribe your spoken voice into text, please grant audio recording access.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             textAlign = TextAlign.Center
@@ -297,8 +324,14 @@ fun VoiceToTextScreenContent(
                         val hasPartialText = state.partialText.isNotBlank()
 
                         if (!hasSpokenText && !hasPartialText) {
+                            val placeholderText = if (state.selectedLanguage.code.startsWith("ms")) {
+                                "Teks pertuturan anda akan muncul di sini.\n\nTekan butang mikrofon di bawah dan mula bercakap dalam Bahasa Melayu."
+                            } else {
+                                "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English."
+                            }
+
                             Text(
-                                text = "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English.",
+                                text = placeholderText,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 fontStyle = FontStyle.Italic,
@@ -342,8 +375,9 @@ fun VoiceToTextScreenContent(
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 4.dp
                     ) {
+                        val perkataanLabel = if (state.selectedLanguage.code.startsWith("ms")) "perkataan" else "words"
                         Text(
-                            text = "$wordCount words",
+                            text = "$wordCount $perkataanLabel",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -419,7 +453,8 @@ fun VoiceToTextScreenContent(
             // Microphone Button with Pulse Animation
             MicButtonSection(
                 isListening = state.isListening,
-                hasPermission = hasAudioPermission
+                hasPermission = hasAudioPermission,
+                language = state.selectedLanguage
             ) {
                 if (!hasAudioPermission) {
                     onRequestPermission()
@@ -439,6 +474,7 @@ fun VoiceToTextScreenContent(
 fun MicButtonSection(
     isListening: Boolean,
     hasPermission: Boolean,
+    language: LanguageOption,
     onMicClick: () -> Unit,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulseAnimation")
@@ -517,12 +553,15 @@ fun MicButtonSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        val buttonLabel = when {
+            !hasPermission -> "Tekan untuk kebenaran mikrofon"
+            isListening -> if (language.code.startsWith("ms")) "Mendengar... Sila bercakap" else "Listening... Speak now"
+            language.code.startsWith("ms") -> "Tekan untuk bercakap Bahasa Melayu"
+            else -> "Tap to speak in English"
+        }
+
         Text(
-            text = when {
-                !hasPermission -> "Tap to request permission"
-                isListening -> "Listening... Speak now"
-                else -> "Tap to speak in English"
-            },
+            text = buttonLabel,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             color = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -536,8 +575,9 @@ fun VoiceToTextScreenPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
-                spokenText = "Hello world! This is a real-time English speech transcription demo on Android.",
-                isListening = false
+                spokenText = "Selamat datang! Ini adalah demo pengecaman suara Bahasa Melayu dalam masa nyata.",
+                isListening = false,
+                selectedLanguage = supportedLanguages[0]
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }
@@ -551,9 +591,10 @@ fun VoiceToTextScreenListeningPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
-                spokenText = "Detecting English voice input...",
-                partialText = "and transcribing speech in real time",
-                isListening = true
+                spokenText = "Mengenal pasti pertuturan...",
+                partialText = "dan menukar suara kepada teks",
+                isListening = true,
+                selectedLanguage = supportedLanguages[0]
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }

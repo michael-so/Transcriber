@@ -4,29 +4,35 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.StateFlow
 
-class VoiceToTextViewModel(application: Application) : AndroidViewModel(application) {
+class VoiceToTextViewModel @JvmOverloads constructor(
+    application: Application,
+    private val engine: VoiceToTextEngine = VoiceToTextParser(application),
+) : AndroidViewModel(application) {
 
-    val parser = VoiceToTextParser(application)
-    val state: StateFlow<VoiceToTextState> = parser.state
+    val state: StateFlow<VoiceToTextState> = engine.state
 
-    fun startListening(languageCode: String = "en-US") {
-        parser.startListening(languageCode)
+    fun startListening(languageCode: String = state.value.selectedLanguage.code) {
+        engine.startListening(languageCode)
     }
 
     fun stopListening() {
-        parser.stopListening()
+        engine.stopListening()
+    }
+
+    fun setLanguage(language: LanguageOption) {
+        engine.setLanguage(language)
     }
 
     fun clearText() {
-        parser.clearText()
+        engine.clearText()
     }
 
     fun clearError() {
-        parser.clearError()
+        engine.clearError()
     }
 
     override fun onCleared() {
         super.onCleared()
-        parser.stopListening()
+        engine.stopListening()
     }
 }
