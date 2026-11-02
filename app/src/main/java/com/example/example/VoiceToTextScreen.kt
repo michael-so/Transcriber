@@ -180,7 +180,11 @@ fun VoiceToTextScreenContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
+<<<<<<< Updated upstream
                             text = "Real-time English Speech Recognition",
+=======
+                            text = "Speech Recognition in Iban, Malay & English",
+>>>>>>> Stashed changes
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -223,8 +227,18 @@ fun VoiceToTextScreenContent(
                 )
 
                 if (state.isListening) {
+                    val listeningBadge = when {
+                        state.selectedLanguage.code.startsWith("iba") -> "● NDINGAR"
+                        state.selectedLanguage.code.startsWith("ms") -> "● MENDENGAR"
+                        else -> "● LISTENING"
+                    }
+
                     Text(
+<<<<<<< Updated upstream
                         text = "● LISTENING",
+=======
+                        text = listeningBadge,
+>>>>>>> Stashed changes
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -297,6 +311,18 @@ fun VoiceToTextScreenContent(
                         val hasPartialText = state.partialText.isNotBlank()
 
                         if (!hasSpokenText && !hasPartialText) {
+<<<<<<< Updated upstream
+=======
+                            val placeholderText = when {
+                                state.selectedLanguage.code.startsWith("iba") ->
+                                    "Teks jaku nuan deka pansut ditu.\n\nTekan butang mikropon ba baruh lalu berengkah bejaku ba dalam Jaku Iban."
+                                state.selectedLanguage.code.startsWith("ms") ->
+                                    "Teks pertuturan anda akan muncul di sini.\n\nTekan butang mikrofon di bawah dan mula bercakap dalam Bahasa Melayu."
+                                else ->
+                                    "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English."
+                            }
+
+>>>>>>> Stashed changes
                             Text(
                                 text = "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English.",
                                 style = MaterialTheme.typography.bodyLarge,
@@ -342,8 +368,18 @@ fun VoiceToTextScreenContent(
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 4.dp
                     ) {
+<<<<<<< Updated upstream
                         Text(
                             text = "$wordCount words",
+=======
+                        val wordLabel = when {
+                            state.selectedLanguage.code.startsWith("iba") -> "leka jaku"
+                            state.selectedLanguage.code.startsWith("ms") -> "perkataan"
+                            else -> "words"
+                        }
+                        Text(
+                            text = "$wordCount $wordLabel",
+>>>>>>> Stashed changes
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -517,6 +553,21 @@ fun MicButtonSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+<<<<<<< Updated upstream
+=======
+        val buttonLabel = when {
+            !hasPermission -> if (language.code.startsWith("iba")) "Tekan ka kebenaran mikropon" else if (language.code.startsWith("ms")) "Tekan untuk kebenaran mikrofon" else "Tap to request permission"
+            isListening -> when {
+                language.code.startsWith("iba") -> "Ndingar... Sila bejaku"
+                language.code.startsWith("ms") -> "Mendengar... Sila bercakap"
+                else -> "Listening... Speak now"
+            }
+            language.code.startsWith("iba") -> "Tekan ka bejaku dalam Jaku Iban"
+            language.code.startsWith("ms") -> "Tekan untuk bercakap Bahasa Melayu"
+            else -> "Tap to speak in English"
+        }
+
+>>>>>>> Stashed changes
         Text(
             text = when {
                 !hasPermission -> "Tap to request permission"
@@ -536,8 +587,14 @@ fun VoiceToTextScreenPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
+<<<<<<< Updated upstream
                 spokenText = "Hello world! This is a real-time English speech transcription demo on Android.",
                 isListening = false
+=======
+                spokenText = "Selamat datai! Tu nya demo penemu nemu jaku Iban ba dalam awak nyata.",
+                isListening = false,
+                selectedLanguage = supportedLanguages[1]
+>>>>>>> Stashed changes
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }
@@ -551,9 +608,16 @@ fun VoiceToTextScreenListeningPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
+<<<<<<< Updated upstream
                 spokenText = "Detecting English voice input...",
                 partialText = "and transcribing speech in real time",
                 isListening = true
+=======
+                spokenText = "Nemu jaku Iban...",
+                partialText = "lalu nganti jaku nyadi teks",
+                isListening = true,
+                selectedLanguage = supportedLanguages[1]
+>>>>>>> Stashed changes
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }

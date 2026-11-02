@@ -11,6 +11,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+<<<<<<< Updated upstream
+=======
+data class LanguageOption(
+    val code: String,
+    val displayName: String,
+    val flag: String,
+)
+
+val supportedLanguages = listOf(
+    LanguageOption(code = "ms-MY", displayName = "Malay (Bahasa Melayu)", flag = "🇲🇾"),
+    LanguageOption(code = "iba-MY", displayName = "Iban (Jaku Iban)", flag = "🇲🇾"),
+    LanguageOption(code = "en-US", displayName = "English (US)", flag = "🇺🇸"),
+)
+
+/**
+ * Contract interface for Voice-To-Text Engines.
+ */
+interface VoiceToTextEngine {
+    val state: StateFlow<VoiceToTextState>
+    fun startListening(languageCode: String = state.value.selectedLanguage.code)
+    fun stopListening()
+    fun setLanguage(language: LanguageOption)
+    fun clearText()
+    fun clearError()
+}
+
+>>>>>>> Stashed changes
 data class VoiceToTextState(
     val isListening: Boolean = false,
     val spokenText: String = "",
