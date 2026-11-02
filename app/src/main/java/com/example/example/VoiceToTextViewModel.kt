@@ -9,8 +9,12 @@ class VoiceToTextViewModel(application: Application) : AndroidViewModel(applicat
     val parser = VoiceToTextParser(application)
     val state: StateFlow<VoiceToTextState> = parser.state
 
-    fun startListening(languageCode: String = "en-US") {
+    fun startListening(languageCode: String = state.value.selectedLanguage.code) {
         parser.startListening(languageCode)
+    }
+
+    fun setLanguage(language: LanguageOption) {
+        parser.setLanguage(language)
     }
 
     fun stopListening() {

@@ -41,6 +41,8 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -112,7 +114,7 @@ fun VoiceToTextScreen(
                 snackbarHostState.showSnackbar("Microphone permission is required to detect and transcribe voice.")
             }
         } else {
-            viewModel.startListening("en-US")
+            viewModel.startListening(state.selectedLanguage.code)
         }
     }
 
@@ -133,7 +135,7 @@ fun VoiceToTextScreen(
             val granted = isPermissionGranted()
             hasAudioPermission = granted
             if (granted) {
-                viewModel.startListening("en-US")
+                viewModel.startListening(state.selectedLanguage.code)
             } else {
                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
@@ -150,6 +152,9 @@ fun VoiceToTextScreen(
                 putExtra(Intent.EXTRA_TEXT, text)
             }
             context.startActivity(Intent.createChooser(shareIntent, "Share transcribed text"))
+        },
+        onSelectLanguage = { language ->
+            viewModel.setLanguage(language)
         }
     )
 }
@@ -167,6 +172,7 @@ fun VoiceToTextScreenContent(
     onClearText: () -> Unit = {},
     onCopyText: (String) -> Unit = {},
     onShareText: (String) -> Unit = {},
+    onSelectLanguage: (LanguageOption) -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -176,15 +182,11 @@ fun VoiceToTextScreenContent(
                 title = {
                     Column {
                         Text(
-                            text = "English Voice Transcriber",
+                            text = "Voice Transcriber",
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-<<<<<<< Updated upstream
-                            text = "Real-time English Speech Recognition",
-=======
                             text = "Speech Recognition in Iban, Malay & English",
->>>>>>> Stashed changes
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -204,27 +206,48 @@ fun VoiceToTextScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Header Language Badge
+            // Header Language Badge with Dropdown Selection
+            var languageMenuExpanded by remember { mutableStateOf(false) }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AssistChip(
-                    onClick = { },
-                    label = { Text("Language: English (US)") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                Box {
+                    AssistChip(
+                        onClick = { languageMenuExpanded = true },
+                        label = { Text("${state.selectedLanguage.flag} ${state.selectedLanguage.displayName}") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Select language",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        labelColor = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                )
+
+                    DropdownMenu(
+                        expanded = languageMenuExpanded,
+                        onDismissRequest = { languageMenuExpanded = false }
+                    ) {
+                        supportedLanguages.forEach { language ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text("${language.flag} ${language.displayName}")
+                                },
+                                onClick = {
+                                    onSelectLanguage(language)
+                                    languageMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 if (state.isListening) {
                     val listeningBadge = when {
@@ -234,11 +257,7 @@ fun VoiceToTextScreenContent(
                     }
 
                     Text(
-<<<<<<< Updated upstream
-                        text = "● LISTENING",
-=======
                         text = listeningBadge,
->>>>>>> Stashed changes
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -268,7 +287,7 @@ fun VoiceToTextScreenContent(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "To transcribe your spoken English into text, please grant audio recording access.",
+                            text = "To transcribe your spoken voice into text, please grant audio recording access.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             textAlign = TextAlign.Center
@@ -311,8 +330,6 @@ fun VoiceToTextScreenContent(
                         val hasPartialText = state.partialText.isNotBlank()
 
                         if (!hasSpokenText && !hasPartialText) {
-<<<<<<< Updated upstream
-=======
                             val placeholderText = when {
                                 state.selectedLanguage.code.startsWith("iba") ->
                                     "Teks jaku nuan deka pansut ditu.\n\nTekan butang mikropon ba baruh lalu berengkah bejaku ba dalam Jaku Iban."
@@ -322,9 +339,8 @@ fun VoiceToTextScreenContent(
                                     "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English."
                             }
 
->>>>>>> Stashed changes
                             Text(
-                                text = "Your transcribed text will appear here.\n\nTap the microphone button below and start speaking in English.",
+                                text = placeholderText,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 fontStyle = FontStyle.Italic,
@@ -368,10 +384,6 @@ fun VoiceToTextScreenContent(
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 4.dp
                     ) {
-<<<<<<< Updated upstream
-                        Text(
-                            text = "$wordCount words",
-=======
                         val wordLabel = when {
                             state.selectedLanguage.code.startsWith("iba") -> "leka jaku"
                             state.selectedLanguage.code.startsWith("ms") -> "perkataan"
@@ -379,7 +391,6 @@ fun VoiceToTextScreenContent(
                         }
                         Text(
                             text = "$wordCount $wordLabel",
->>>>>>> Stashed changes
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -455,7 +466,8 @@ fun VoiceToTextScreenContent(
             // Microphone Button with Pulse Animation
             MicButtonSection(
                 isListening = state.isListening,
-                hasPermission = hasAudioPermission
+                hasPermission = hasAudioPermission,
+                language = state.selectedLanguage
             ) {
                 if (!hasAudioPermission) {
                     onRequestPermission()
@@ -475,6 +487,7 @@ fun VoiceToTextScreenContent(
 fun MicButtonSection(
     isListening: Boolean,
     hasPermission: Boolean,
+    language: LanguageOption = supportedLanguages.last(),
     onMicClick: () -> Unit,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulseAnimation")
@@ -553,8 +566,6 @@ fun MicButtonSection(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-<<<<<<< Updated upstream
-=======
         val buttonLabel = when {
             !hasPermission -> if (language.code.startsWith("iba")) "Tekan ka kebenaran mikropon" else if (language.code.startsWith("ms")) "Tekan untuk kebenaran mikrofon" else "Tap to request permission"
             isListening -> when {
@@ -567,13 +578,8 @@ fun MicButtonSection(
             else -> "Tap to speak in English"
         }
 
->>>>>>> Stashed changes
         Text(
-            text = when {
-                !hasPermission -> "Tap to request permission"
-                isListening -> "Listening... Speak now"
-                else -> "Tap to speak in English"
-            },
+            text = buttonLabel,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             color = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -587,14 +593,9 @@ fun VoiceToTextScreenPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
-<<<<<<< Updated upstream
-                spokenText = "Hello world! This is a real-time English speech transcription demo on Android.",
-                isListening = false
-=======
                 spokenText = "Selamat datai! Tu nya demo penemu nemu jaku Iban ba dalam awak nyata.",
                 isListening = false,
                 selectedLanguage = supportedLanguages[1]
->>>>>>> Stashed changes
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }
@@ -608,16 +609,10 @@ fun VoiceToTextScreenListeningPreview() {
     ExampleTheme {
         VoiceToTextScreenContent(
             state = VoiceToTextState(
-<<<<<<< Updated upstream
-                spokenText = "Detecting English voice input...",
-                partialText = "and transcribing speech in real time",
-                isListening = true
-=======
                 spokenText = "Nemu jaku Iban...",
                 partialText = "lalu nganti jaku nyadi teks",
                 isListening = true,
                 selectedLanguage = supportedLanguages[1]
->>>>>>> Stashed changes
             ),
             hasAudioPermission = true,
             snackbarHostState = remember { SnackbarHostState() }

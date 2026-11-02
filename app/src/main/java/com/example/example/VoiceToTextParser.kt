@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-<<<<<<< Updated upstream
-=======
 data class LanguageOption(
     val code: String,
     val displayName: String,
@@ -37,19 +35,19 @@ interface VoiceToTextEngine {
     fun clearError()
 }
 
->>>>>>> Stashed changes
 data class VoiceToTextState(
     val isListening: Boolean = false,
     val spokenText: String = "",
     val partialText: String = "",
     val error: String? = null,
-    val isAvailable: Boolean = true
+    val isAvailable: Boolean = true,
+    val selectedLanguage: LanguageOption = supportedLanguages.last()
 )
 
-class VoiceToTextParser(private val context: Context) : RecognitionListener {
+class VoiceToTextParser(private val context: Context) : RecognitionListener, VoiceToTextEngine {
 
     private val _state = MutableStateFlow(VoiceToTextState())
-    val state: StateFlow<VoiceToTextState> = _state.asStateFlow()
+    override val state: StateFlow<VoiceToTextState> = _state.asStateFlow()
 
     private var recognizer: SpeechRecognizer? = null
 
@@ -59,7 +57,11 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
         }
     }
 
-    fun startListening(languageCode: String = "en-US") {
+    override fun setLanguage(language: LanguageOption) {
+        _state.update { it.copy(selectedLanguage = language) }
+    }
+
+    override fun startListening(languageCode: String) {
         _state.update { it.copy(error = null) }
 
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
@@ -73,10 +75,12 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
             setRecognitionListener(this@VoiceToTextParser)
         }
 
+        val targetLanguage = if (languageCode.isBlank()) _state.value.selectedLanguage.code else languageCode
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageCode)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, languageCode)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, targetLanguage)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, targetLanguage)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
@@ -85,7 +89,7 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
         _state.update { it.copy(isListening = true, error = null) }
     }
 
-    fun stopListening() {
+    override fun stopListening() {
         try {
             recognizer?.stopListening()
             recognizer?.destroy()
@@ -96,11 +100,11 @@ class VoiceToTextParser(private val context: Context) : RecognitionListener {
         }
     }
 
-    fun clearText() {
+    override fun clearText() {
         _state.update { it.copy(spokenText = "", partialText = "", error = null) }
     }
 
-    fun clearError() {
+    override fun clearError() {
         _state.update { it.copy(error = null) }
     }
 
